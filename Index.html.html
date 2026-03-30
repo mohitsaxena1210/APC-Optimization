@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APC Optimization Dashboard — Hindalco RPD</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Inter:wght@300;400;500;600&display=swap');
+
+  :root {
+    --navy: #0f1f3d;
+    --navy2: #1a2f54;
+    --blue: #1d4ed8;
+    --cyan: #06b6d4;
+    --amber: #f59e0b;
+    --green: #10b981;
+    --red: #ef4444;
+    --orange: #f97316;
+    --purple: #8b5cf6;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --border: rgba(99,179,237,0.15);
+    --card: rgba(15,31,61,0.8);
+    --card2: rgba(26,47,84,0.6);
+    --glow: 0 0 20px rgba(6,182,212,0.15);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--navy);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(29,78,216,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, rgba(6,182,212,0.08) 0%, transparent 60%),
+      linear-gradient(180deg, #0a1628 0%, #0f1f3d 100%);
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: rgba(10,22,40,0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px;
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .header-brand { display:flex; align-items:center; gap:1rem; }
+  .header-logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--blue), var(--cyan));
+    border-radius: 8px;
+    display: flex; align-items:center; justify-content:center;
+    font-family: 'Rajdhani', sans-serif; font-weight:700; font-size:18px; color:#fff;
+  }
+  .header-title { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.25rem; color:var(--text); }
+  .header-sub { font-size:.75rem; color:var(--text2); }
+  .header-right { display:flex; align-items:center; gap:1.5rem; }
+  .live-badge {
+    display:flex; align-items:center; gap:.5rem;
+    background: rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3);
+    padding:.3rem .75rem; border-radius:20px; font-size:.75rem; font-weight:600; color:var(--green);
+  }
+  .live-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+  .header-date { font-family:'Share Tech Mono',monospace; font-size:.8rem; color:var(--text2); }
+
+  /* ── NAV TABS ── */
+  .nav-tabs {
+    background: rgba(10,22,40,0.7);
+    border-bottom: 1px solid var(--border);
+    display: flex; gap:0; padding: 0 2rem;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    padding:.75rem 1.5rem; background:none; border:none; border-bottom:2px solid transparent;
+    color:var(--text2); cursor:pointer; font-size:.85rem; font-weight:500;
+    white-space:nowrap; transition: all .2s; font-family:'Inter',sans-serif;
+  }
+  .tab-btn:hover { color:var(--cyan); }
+  .tab-btn.active { color:var(--cyan); border-bottom-color:var(--cyan); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  /* ── LAYOUT ── */
+  .main { padding: 1.5rem 2rem; max-width:1600px; margin:0 auto; }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-family:'Rajdhani',sans-serif; font-weight:600; font-size:.7rem;
+    text-transform:uppercase; letter-spacing:.12em; color:var(--cyan);
+    margin-bottom:1rem;
+  }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+  @media(max-width:900px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+  .kpi-card {
+    background: var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:1.25rem;
+    position:relative; overflow:hidden;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .kpi-card:hover { transform:translateY(-2px); box-shadow:var(--glow); }
+  .kpi-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    border-radius:12px 12px 0 0;
+  }
+  .kpi-card.apc::before { background: linear-gradient(90deg, var(--amber), var(--orange)); }
+  .kpi-card.forecast::before { background: linear-gradient(90deg, var(--blue), var(--cyan)); }
+  .kpi-card.savings::before { background: linear-gradient(90deg, var(--green), #34d399); }
+  .kpi-card.equipment::before { background: linear-gradient(90deg, var(--purple), #a78bfa); }
+  .kpi-label { font-size:.72rem; font-weight:500; color:var(--text2); text-transform:uppercase; letter-spacing:.08em; margin-bottom:.5rem; }
+  .kpi-value { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:2.4rem; line-height:1; margin-bottom:.4rem; }
+  .kpi-card.apc .kpi-value { color:var(--amber); }
+  .kpi-card.forecast .kpi-value { color:var(--cyan); }
+  .kpi-card.savings .kpi-value { color:var(--green); }
+  .kpi-card.equipment .kpi-value { color:var(--purple); }
+  .kpi-sub { font-size:.78rem; color:var(--text2); display:flex; align-items:center; gap:.4rem; }
+  .kpi-trend { font-size:.7rem; padding:.15rem .5rem; border-radius:4px; font-weight:600; }
+  .trend-up { background:rgba(239,68,68,.15); color:var(--red); }
+  .trend-down { background:rgba(16,185,129,.15); color:var(--green); }
+  .trend-neutral { background:rgba(148,163,184,.1); color:var(--text2); }
+  .kpi-icon {
+    position:absolute; right:1rem; top:1rem;
+    font-size:2rem; opacity:.15;
+  }
+
+  /* ── GRID LAYOUTS ── */
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+  .grid-3 { display:grid; grid-template-columns:2fr 1fr; gap:1rem; margin-bottom:1rem; }
+  @media(max-width:1100px){ .grid-2,.grid-3{ grid-template-columns:1fr; } }
+
+  /* ── CHART CARDS ── */
+  .chart-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:1.25rem;
+  }
+  .chart-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+  .chart-title { font-family:'Rajdhani',sans-serif; font-weight:600; font-size:1rem; color:var(--text); }
+  .chart-badge { font-size:.68rem; padding:.2rem .6rem; border-radius:4px; font-weight:600; }
+  .badge-info { background:rgba(6,182,212,.15); color:var(--cyan); }
+  .badge-warn { background:rgba(245,158,11,.15); color:var(--amber); }
+  .badge-ok { background:rgba(16,185,129,.15); color:var(--green); }
+  .chart-body { position:relative; }
+
+  /* ── EQUIPMENT TABLE ── */
+  .equip-table { width:100%; border-collapse:collapse; }
+  .equip-table th {
+    text-align:left; padding:.6rem .8rem;
+    font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--text2); border-bottom:1px solid var(--border);
+  }
+  .equip-table td { padding:.65rem .8rem; font-size:.82rem; border-bottom:1px solid rgba(99,179,237,.06); }
+  .equip-table tr:last-child td { border-bottom:none; }
+  .equip-table tr:hover td { background:rgba(6,182,212,.04); }
+  .equip-name { font-weight:500; color:var(--text); }
+  .equip-bar-wrap { width:100%; background:rgba(255,255,255,.06); border-radius:4px; height:6px; overflow:hidden; }
+  .equip-bar { height:6px; border-radius:4px; transition:width .8s cubic-bezier(.4,0,.2,1); }
+  .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .dot-red { background:var(--red); box-shadow:0 0 6px var(--red); }
+  .dot-amber { background:var(--amber); box-shadow:0 0 6px var(--amber); }
+  .dot-green { background:var(--green); box-shadow:0 0 6px var(--green); }
+
+  /* ── UNIT GRID ── */
+  .unit-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:.75rem; }
+  @media(max-width:900px){ .unit-grid{ grid-template-columns:repeat(2,1fr); } }
+  .unit-card {
+    background:var(--card2); border:1px solid var(--border);
+    border-radius:10px; padding:1rem; text-align:center;
+    transition:.2s;
+  }
+  .unit-card:hover { border-color:rgba(6,182,212,.4); }
+  .unit-label { font-size:.68rem; color:var(--text2); margin-bottom:.4rem; font-weight:600; text-transform:uppercase; }
+  .unit-number { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.6rem; margin-bottom:.3rem; }
+  .unit-plf { font-size:.72rem; color:var(--text2); }
+  .unit-status { font-size:.65rem; padding:.15rem .5rem; border-radius:4px; margin-top:.5rem; display:inline-block; font-weight:600; }
+
+  /* ── RECOMMENDATIONS ── */
+  .rec-list { display:flex; flex-direction:column; gap:.75rem; }
+  .rec-item {
+    background:var(--card2); border:1px solid var(--border);
+    border-left:3px solid; border-radius:8px; padding:.9rem 1rem;
+    display:flex; gap:1rem; align-items:flex-start;
+    transition:.2s;
+  }
+  .rec-item:hover { background:rgba(26,47,84,0.8); }
+  .rec-item.priority-high { border-left-color:var(--red); }
+  .rec-item.priority-med { border-left-color:var(--amber); }
+  .rec-item.priority-low { border-left-color:var(--green); }
+  .rec-icon { font-size:1.3rem; flex-shrink:0; margin-top:.1rem; }
+  .rec-title { font-weight:600; font-size:.85rem; color:var(--text); margin-bottom:.2rem; }
+  .rec-desc { font-size:.78rem; color:var(--text2); line-height:1.5; }
+  .rec-impact {
+    margin-top:.4rem; font-size:.72rem; font-weight:600;
+    display:flex; align-items:center; gap:.4rem;
+  }
+  .rec-badge { background:rgba(16,185,129,.15); color:var(--green); padding:.1rem .5rem; border-radius:4px; }
+  .rec-meta { margin-left:auto; flex-shrink:0; text-align:right; }
+  .rec-saving { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.1rem; color:var(--green); }
+  .rec-saving-label { font-size:.65rem; color:var(--text2); }
+
+  /* ── SAVINGS PROGRESS ── */
+  .savings-row { display:flex; align-items:center; gap:1rem; margin-bottom:.8rem; }
+  .savings-month { font-size:.78rem; color:var(--text2); width:80px; flex-shrink:0; }
+  .savings-bar-wrap { flex:1; background:rgba(255,255,255,.06); border-radius:4px; height:14px; overflow:hidden; }
+  .savings-bar { height:14px; border-radius:4px; display:flex; align-items:center; padding-left:.4rem; }
+  .savings-val { font-size:.65rem; font-weight:600; color:rgba(255,255,255,.9); }
+  .savings-total { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:.9rem; }
+
+  /* ── ALERT BANNER ── */
+  .alert-bar {
+    background: linear-gradient(135deg, rgba(239,68,68,.1), rgba(245,158,11,.08));
+    border: 1px solid rgba(239,68,68,.2);
+    border-radius:8px; padding:.75rem 1rem;
+    display:flex; align-items:center; gap:.75rem; margin-bottom:1rem;
+    font-size:.82rem;
+  }
+  .alert-icon { font-size:1.1rem; }
+
+  /* ── MONO VALUE ── */
+  .mono { font-family:'Share Tech Mono',monospace; }
+
+  /* ── FOOTER ── */
+  .dash-footer {
+    text-align:center; padding:1.5rem; font-size:.72rem; color:var(--text2);
+    border-top:1px solid var(--border); margin-top:2rem;
+  }
+
+  /* ── OPTIMIZATION CARDS ── */
+  .opt-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1rem; }
+  @media(max-width:1000px){ .opt-grid{grid-template-columns:1fr 1fr;} }
+  .opt-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:1.25rem;
+    position:relative; overflow:hidden;
+  }
+  .opt-card::after {
+    content:''; position:absolute; right:-20px; bottom:-20px;
+    width:80px; height:80px; border-radius:50%;
+    background: radial-gradient(circle, rgba(6,182,212,.06), transparent 70%);
+  }
+  .opt-lever { font-size:.72rem; color:var(--cyan); font-weight:600; text-transform:uppercase; letter-spacing:.08em; margin-bottom:.5rem; }
+  .opt-reduction { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:2rem; color:var(--text); }
+  .opt-unit { font-size:.8rem; color:var(--text2); }
+  .opt-saving { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.1rem; color:var(--green); margin-top:.5rem; }
+  .opt-baseline { display:flex; align-items:center; gap:.5rem; margin-top:.5rem; }
+  .opt-arrow { color:var(--green); font-weight:700; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width:4px; height:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(99,179,237,.2); border-radius:4px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-brand">
+    <div class="header-logo">⚡</div>
+    <div>
+      <div class="header-title">APC Intelligence Dashboard</div>
+      <div class="header-sub">Hindalco Industries Ltd. — Renusagar Power Division (RPD) | 716 MW Captive Plant</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+    <div class="header-date mono" id="live-clock"></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav-tabs">
+  <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Overview</button>
+  <button class="tab-btn" onclick="switchTab('equipment',this)">⚙️ Equipment</button>
+  <button class="tab-btn" onclick="switchTab('units',this)">🏭 Units</button>
+  <button class="tab-btn" onclick="switchTab('ai',this)">🤖 AI Model</button>
+  <button class="tab-btn" onclick="switchTab('optimization',this)">💡 Optimization</button>
+  <button class="tab-btn" onclick="switchTab('recommendations',this)">📋 Recommendations</button>
+</div>
+
+<div class="main">
+
+<!-- ═══════════════════ TAB: OVERVIEW ═══════════════════ -->
+<div id="tab-overview" class="tab-content active">
+
+  <div class="alert-bar">
+    <span class="alert-icon">⚠️</span>
+    <span><strong>Alert:</strong> APC for Aug 2025 at <strong>8.72%</strong> — exceeds monthly target of 8.11%. BFP consumption elevated. <strong>Action required.</strong></span>
+  </div>
+
+  <div class="section-label">Key Performance Indicators — Current Month</div>
+  <div class="kpi-grid">
+    <div class="kpi-card apc">
+      <div class="kpi-icon">⚡</div>
+      <div class="kpi-label">Official APC %</div>
+      <div class="kpi-value">8.72%</div>
+      <div class="kpi-sub">
+        <span class="kpi-trend trend-up">↑ +0.61%</span>
+        vs. 36-month avg 8.11%
+      </div>
+    </div>
+    <div class="kpi-card forecast">
+      <div class="kpi-icon">🔮</div>
+      <div class="kpi-label">AI Forecast — Sep 2025</div>
+      <div class="kpi-value">8.55%</div>
+      <div class="kpi-sub">
+        <span class="kpi-trend trend-down">↓ -0.17%</span>
+        90% CI: [8.34% – 8.76%]
+      </div>
+    </div>
+    <div class="kpi-card savings">
+      <div class="kpi-icon">₹</div>
+      <div class="kpi-label">YTD Savings Realized</div>
+      <div class="kpi-value">₹18.4 Cr</div>
+      <div class="kpi-sub">
+        <span class="kpi-trend trend-neutral">→ On Track</span>
+        vs. ₹52.6 Cr annual target
+      </div>
+    </div>
+    <div class="kpi-card equipment">
+      <div class="kpi-icon">🔧</div>
+      <div class="kpi-label">BFP Contribution</div>
+      <div class="kpi-value">23.4%</div>
+      <div class="kpi-sub">
+        <span class="kpi-trend trend-up">↑ High</span>
+        Alert threshold: 23%
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <!-- APC TREND CHART -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">APC% Trend — Jan 2023 to Dec 2025 (Actual + AI Forecast)</div>
+        <span class="chart-badge badge-warn">Upward Trend</span>
+      </div>
+      <div class="chart-body" style="height:280px">
+        <canvas id="apcTrendChart"></canvas>
+      </div>
+    </div>
+
+    <!-- QUICK STATS -->
+    <div class="chart-card">
+      <div class="chart-header"><div class="chart-title">Quick Stats</div></div>
+      <div style="display:flex; flex-direction:column; gap:.8rem; padding-top:.5rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:.6rem .8rem; background:rgba(255,255,255,.04); border-radius:8px;">
+          <span style="font-size:.8rem; color:var(--text2);">Avg GCV (Aug)</span>
+          <span class="mono" style="font-size:.85rem; color:var(--text);">3,648 kcal/kg</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:.6rem .8rem; background:rgba(255,255,255,.04); border-radius:8px;">
+          <span style="font-size:.8rem; color:var(--text2);">Coal Moisture (Aug)</span>
+          <span class="mono" style="font-size:.85rem; color:var(--amber);">13.8% ⚠️</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:.6rem .8rem; background:rgba(255,255,255,.04); border-radius:8px;">
+          <span style="font-size:.8rem; color:var(--text2);">Total Generation</span>
+          <span class="mono" style="font-size:.85rem; color:var(--text);">692.4 MU</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:.6rem .8rem; background:rgba(255,255,255,.04); border-radius:8px;">
+          <span style="font-size:.8rem; color:var(--text2);">Power Export</span>
+          <span class="mono" style="font-size:.85rem; color:var(--text);">632.1 MU</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:.6rem .8rem; background:rgba(255,255,255,.04); border-radius:8px;">
+          <span style="font-size:.8rem; color:var(--text2);">Boiler Efficiency</span>
+          <span class="mono" style="font-size:.85rem; color:var(--green);">84.3%</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:.6rem .8rem; background:rgba(255,255,255,.04); border-radius:8px;">
+          <span style="font-size:.8rem; color:var(--text2);">Heat Rate</span>
+          <span class="mono" style="font-size:.85rem; color:var(--text);">3,118 kcal/kWh</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:.6rem .8rem; background:rgba(255,255,255,.04); border-radius:8px;">
+          <span style="font-size:.8rem; color:var(--text2);">Avg PLF (all units)</span>
+          <span class="mono" style="font-size:.85rem; color:var(--cyan);">78.7%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAVINGS TRACKER -->
+  <div class="chart-card" style="margin-bottom:1rem;">
+    <div class="chart-header">
+      <div class="chart-title">Annual Savings Tracker — 2025 (₹ Crore vs. Baseline 8.11%)</div>
+      <span class="chart-badge badge-ok">₹18.4 Cr / ₹52.6 Cr Target</span>
+    </div>
+    <div id="savings-bars" style="padding:.5rem 0;"></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════ TAB: EQUIPMENT ═══════════════════ -->
+<div id="tab-equipment" class="tab-content">
+  <div class="section-label">Equipment-Level APC Contribution</div>
+
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Equipment APC Breakdown — Aug 2025</div>
+        <span class="chart-badge badge-warn">BFP Alert</span>
+      </div>
+      <div class="chart-body" style="height:280px">
+        <canvas id="equipDonut"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Equipment Consumption Details</div>
+      </div>
+      <table class="equip-table">
+        <thead>
+          <tr>
+            <th>Equipment</th>
+            <th>MU/Month</th>
+            <th>% APC</th>
+            <th>Trend</th>
+            <th>Status</th>
+            <th>Share</th>
+          </tr>
+        </thead>
+        <tbody id="equip-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Equipment Monthly Trend (2025)</div>
+      <span class="chart-badge badge-info">BFP + CW + ID Fan</span>
+    </div>
+    <div class="chart-body" style="height:240px">
+      <canvas id="equipTrendChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB: UNITS ═══════════════════ -->
+<div id="tab-units" class="tab-content">
+  <div class="section-label">10-Unit Performance Comparison</div>
+
+  <div class="unit-grid" id="unit-grid-container" style="margin-bottom:1rem;"></div>
+
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Unit-wise APC% Comparison</div>
+      <span class="chart-badge badge-info">U7 Best — U8 Worst</span>
+    </div>
+    <div class="chart-body" style="height:260px">
+      <canvas id="unitBarChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB: AI MODEL ═══════════════════ -->
+<div id="tab-ai" class="tab-content">
+  <div class="section-label">AI Model Performance & Feature Importance</div>
+
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Model Comparison — R² Score</div>
+        <span class="chart-badge badge-ok">Hybrid Best: R²=0.941</span>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="modelCompChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">XGBoost Feature Importance</div>
+        <span class="chart-badge badge-info">Top Predictors</span>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="featureImportChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Actual vs. Predicted APC — Test Set (Feb–Dec 2025)</div>
+      <span class="chart-badge badge-ok">MAPE: 1.22%</span>
+    </div>
+    <div class="chart-body" style="height:240px">
+      <canvas id="actualVsPredChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB: OPTIMIZATION ═══════════════════ -->
+<div id="tab-optimization" class="tab-content">
+  <div class="section-label">Optimization Engine — 6 Levers × Savings Simulation</div>
+
+  <div class="opt-grid" id="opt-cards"></div>
+
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Combined Optimization Scenario — APC Reduction Waterfall</div>
+      <span class="chart-badge badge-ok">Total: 8.11% → 6.92%</span>
+    </div>
+    <div class="chart-body" style="height:260px">
+      <canvas id="waterfallChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB: RECOMMENDATIONS ═══════════════════ -->
+<div id="tab-recommendations" class="tab-content">
+  <div class="section-label">AI-Generated Operational Recommendations — Sep 2025</div>
+  <div class="rec-list" id="rec-list"></div>
+</div>
+
+</div><!-- /main -->
+
+<div class="dash-footer">
+  APC Intelligence Dashboard v2.0 | Hindalco RPD Captive Power Plant | AI-Based MRP-1 Research | IIM Ranchi EMBA | Data: Jan 2023 – Dec 2025
+</div>
+
+<script>
+// ── LIVE CLOCK ───────────────────────────────────────────────────────────────
+function updateClock(){
+  const now = new Date();
+  document.getElementById('live-clock').textContent = 
+    now.toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
+}
+updateClock(); setInterval(updateClock,60000);
+
+// ── TAB SWITCHING ────────────────────────────────────────────────────────────
+function switchTab(id, btn){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── CHART DEFAULTS ───────────────────────────────────────────────────────────
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = 'rgba(99,179,237,0.1)';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size = 11;
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_2023 = MONTHS.map(m=>m+" '23");
+const MONTHS_2024 = MONTHS.map(m=>m+" '24");
+const MONTHS_2025 = MONTHS.map(m=>m+" '25");
+const ALL_MONTHS = [...MONTHS_2023,...MONTHS_2024,...MONTHS_2025];
+
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const apcActual = [
+  8.42,8.31,8.19,7.98,8.10,8.25,8.45,8.38,8.17,8.05,8.22,8.60,
+  8.55,8.43,null,8.28,8.15,8.33,8.52,8.61,8.40,8.21,8.38,8.74,
+  8.68,8.49,8.30,8.20,8.08,8.26,8.48,8.72,null,null,null,null
+];
+const apcForecast = Array(33).fill(null).concat([8.55,8.44,8.61]);
+const apcTarget = Array(36).fill(8.11);
+
+const equipData = [
+  {name:'Boiler Feed Pump (BFP)', mu:1.93, pct:23.4, trend:'↑', color:'#ef4444', status:'red'},
+  {name:'CW Pump', mu:1.19, pct:14.4, trend:'→', color:'#f59e0b', status:'amber'},
+  {name:'ID Fan', mu:0.94, pct:11.4, trend:'↓', color:'#10b981', status:'green'},
+  {name:'PA Fan', mu:0.71, pct:8.6, trend:'→', color:'#06b6d4', status:'green'},
+  {name:'FD Fan', mu:0.52, pct:6.3, trend:'→', color:'#8b5cf6', status:'green'},
+  {name:'Mills', mu:0.71, pct:8.6, trend:'↑', color:'#f97316', status:'amber'},
+  {name:'CEP & Others', mu:0.48, pct:5.8, trend:'→', color:'#64748b', status:'green'},
+];
+
+const unitData = [
+  {u:'U1', apc:8.02, plf:81.3, status:'green'},
+  {u:'U2', apc:8.18, plf:79.5, status:'green'},
+  {u:'U3', apc:7.95, plf:83.2, status:'green'},
+  {u:'U4', apc:8.31, plf:76.4, status:'amber'},
+  {u:'U5', apc:8.44, plf:74.8, status:'amber'},
+  {u:'U6', apc:8.09, plf:80.9, status:'green'},
+  {u:'U7', apc:7.88, plf:84.1, status:'green'},
+  {u:'U8', apc:8.55, plf:72.3, status:'red'},
+  {u:'U9', apc:8.22, plf:78.7, status:'green'},
+  {u:'U10',apc:8.37, plf:75.9, status:'amber'},
+];
+
+const optLevers = [
+  {lever:'Coal Moisture Reduction', from:8.11, to:7.83, delta:0.28, saving:'₹12.4 Cr'},
+  {lever:'BFP Load Scheduling', from:8.11, to:7.95, delta:0.16, saving:'₹7.1 Cr'},
+  {lever:'CW Pump Optimization', from:8.11, to:7.98, delta:0.13, saving:'₹5.8 Cr'},
+  {lever:'ID Fan Damper Control', from:8.11, to:8.02, delta:0.09, saving:'₹4.0 Cr'},
+  {lever:'Unit Loading Balancing', from:8.11, to:7.90, delta:0.21, saving:'₹9.3 Cr'},
+  {lever:'Combined AI Scenario', from:8.11, to:6.92, delta:1.19, saving:'₹52.6 Cr'},
+];
+
+const recs = [
+  {priority:'high', icon:'🔥', title:'Reduce Coal Moisture — Urgent (Aug–Oct Window)', 
+   desc:'Current moisture 13.8% is at peak monsoon level. Initiate coal blending with lower-moisture stockpile (target < 10%). Mill loading and ID fan damper positions will normalize, directly reducing APC.',
+   impact:'APC ↓0.28% | ₹12.4 Cr/year', saving:'₹1.03 Cr', period:'This Month'},
+  {priority:'high', icon:'⚙️', title:'Unit 8 BFP Speed Optimization — Immediate Action',
+   desc:'BFP #2 on Unit 8 running at 1,490 RPM against optimal 1,380 RPM. Reduce speed setpoint via DCS. Estimated 8% reduction in BFP electricity draw for Unit 8.',
+   impact:'BFP ↓8% on U8 | APC ↓0.08%', saving:'₹0.62 Cr', period:'This Month'},
+  {priority:'med', icon:'💧', title:'CW Pump Duty-Standby Switching — Night Operation',
+   desc:'Units 3, 6, 7 generating below 95 MW during 22:00–06:00. Switch to duty-standby CW pump configuration during these hours. No impact on condenser vacuum within normal operating range.',
+   impact:'CW MU ↓12% | APC ↓0.06%', saving:'₹0.18 Cr', period:'This Month'},
+  {priority:'med', icon:'📊', title:'Unit 5 Load Rebalancing',
+   desc:'Unit 5 PLF at 74.8% (lowest). Consider transferring 8–10 MW to Unit 7 (highest efficiency, PLF 84.1%). Fixed auxiliary loads amortized over higher generation base reduces APC intensity.',
+   impact:'PLF shift | APC ↓0.04%', saving:'₹0.09 Cr', period:'Next 2 Weeks'},
+  {priority:'low', icon:'🌡️', title:'ID Fan Inlet Damper O2 Target Adjustment',
+   desc:'Flue gas O2 at 4.6% (above target 3.5%). Reduce inlet damper opening by 3% across all units with O2 > 4.0%. This reduces fan loading while maintaining safe combustion margin.',
+   impact:'ID Fan ↓5% | APC ↓0.05%', saving:'₹0.28 Cr', period:'Next Month'},
+  {priority:'low', icon:'🔮', title:'Pre-position for Dry Season Coal Transition',
+   desc:'AI model forecasts GCV improvement to 3,850+ kcal/kg in Oct–Nov. Pre-position mill speed setpoints and PA fan targets for improved coal. Avoid over-milling high-GCV coal — common cause of unnecessary APC rise in Oct.',
+   impact:'Preventive | APC stable', saving:'₹0.35 Cr', period:'Next Quarter'},
+];
+
+const savingsMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'];
+const savingsVals = [1.8, 2.1, 2.4, 2.0, 2.3, 2.8, 2.5, 2.5];
+
+// ── BUILD SAVINGS BARS ───────────────────────────────────────────────────────
+const savingsDiv = document.getElementById('savings-bars');
+const maxSav = Math.max(...savingsVals);
+savingsMonths.forEach((m,i)=>{
+  const pct = (savingsVals[i]/4)*100;
+  const color = `linear-gradient(90deg, #10b981, #34d399)`;
+  savingsDiv.innerHTML += `
+    <div class="savings-row">
+      <span class="savings-month">${m} 2025</span>
+      <div class="savings-bar-wrap">
+        <div class="savings-bar" style="width:${pct}%; background:${color};">
+          <span class="savings-val">₹${savingsVals[i].toFixed(1)} Cr</span>
+        </div>
+      </div>
+      <span class="savings-total" style="color:var(--green); width:70px; text-align:right;">₹${savingsVals[i].toFixed(1)} Cr</span>
+    </div>`;
+});
+savingsDiv.innerHTML += `<div style="text-align:right; font-size:.78rem; color:var(--text2); margin-top:.5rem;">YTD Total: <strong style="color:var(--green);">₹18.4 Cr</strong> | Annual Target: <strong style="color:var(--amber);">₹52.6 Cr</strong></div>`;
+
+// ── BUILD EQUIPMENT TABLE ─────────────────────────────────────────────────────
+const equibTbody = document.getElementById('equip-tbody');
+equipData.forEach(e=>{
+  const dotClass = e.status === 'red' ? 'dot-red' : e.status === 'amber' ? 'dot-amber' : 'dot-green';
+  const barW = Math.round(e.pct / 25 * 100);
+  equibTbody.innerHTML += `
+    <tr>
+      <td class="equip-name">${e.name}</td>
+      <td class="mono">${e.mu.toFixed(2)}</td>
+      <td class="mono" style="color:${e.color}; font-weight:600;">${e.pct}%</td>
+      <td style="color:${e.trend==='↑'?'#ef4444':e.trend==='↓'?'#10b981':'#94a3b8'}; font-weight:700;">${e.trend}</td>
+      <td><span class="status-dot ${dotClass}"></span></td>
+      <td style="width:120px">
+        <div class="equip-bar-wrap"><div class="equip-bar" style="width:${barW}%; background:${e.color};"></div></div>
+      </td>
+    </tr>`;
+});
+
+// ── BUILD UNIT GRID ───────────────────────────────────────────────────────────
+const unitGrid = document.getElementById('unit-grid-container');
+unitData.forEach(u=>{
+  const clr = u.status==='red'?'var(--red)':u.status==='amber'?'var(--amber)':'var(--cyan)';
+  const bgClr = u.status==='red'?'rgba(239,68,68,.1)':u.status==='amber'?'rgba(245,158,11,.1)':'rgba(16,185,129,.1)';
+  const lbl = u.status==='red'?'⚠️ Review':u.status==='amber'?'⚡ Monitor':'✅ Normal';
+  unitGrid.innerHTML += `
+    <div class="unit-card">
+      <div class="unit-label">${u.u}</div>
+      <div class="unit-number" style="color:${clr}">${u.apc}%</div>
+      <div class="unit-plf">PLF: ${u.plf}%</div>
+      <div class="unit-status" style="background:${bgClr}; color:${clr};">${lbl}</div>
+    </div>`;
+});
+
+// ── BUILD OPT CARDS ───────────────────────────────────────────────────────────
+const optGrid = document.getElementById('opt-cards');
+optLevers.forEach(l=>{
+  const isCombined = l.lever.includes('Combined');
+  const borderColor = isCombined ? 'rgba(16,185,129,.4)' : 'rgba(6,182,212,.15)';
+  optGrid.innerHTML += `
+    <div class="opt-card" style="border-color:${borderColor}; ${isCombined?'grid-column:span 1;background:rgba(16,185,129,0.07);':''}">
+      <div class="opt-lever">${l.lever}</div>
+      <div class="opt-reduction">${l.delta.toFixed(2)}<span class="opt-unit">% APC reduction</span></div>
+      <div class="opt-baseline">
+        <span style="font-size:.78rem;color:var(--text2);">${l.from}%</span>
+        <span class="opt-arrow">→</span>
+        <span style="font-size:.78rem;color:var(--cyan);">${l.to}%</span>
+      </div>
+      <div class="opt-saving">${l.saving} / year</div>
+    </div>`;
+});
+
+// ── BUILD RECOMMENDATIONS ─────────────────────────────────────────────────────
+const recList = document.getElementById('rec-list');
+recs.forEach(r=>{
+  recList.innerHTML += `
+    <div class="rec-item priority-${r.priority}">
+      <div class="rec-icon">${r.icon}</div>
+      <div style="flex:1">
+        <div class="rec-title">${r.title}</div>
+        <div class="rec-desc">${r.desc}</div>
+        <div class="rec-impact"><span class="rec-badge">${r.impact}</span> <span style="color:var(--text2)">— ${r.period}</span></div>
+      </div>
+      <div class="rec-meta">
+        <div class="rec-saving">${r.saving}</div>
+        <div class="rec-saving-label">Est. saving</div>
+      </div>
+    </div>`;
+});
+
+// ── CHARTS ───────────────────────────────────────────────────────────────────
+
+// APC TREND
+new Chart(document.getElementById('apcTrendChart'), {
+  type:'line',
+  data:{
+    labels: ALL_MONTHS,
+    datasets:[
+      {label:'Actual APC%', data:apcActual, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)',
+       borderWidth:2, pointRadius:2, tension:.3, fill:true, spanGaps:false},
+      {label:'AI Forecast', data:apcForecast, borderColor:'#06b6d4', backgroundColor:'rgba(6,182,212,.06)',
+       borderWidth:2, borderDash:[5,4], pointRadius:4, tension:.3, fill:true},
+      {label:'Target (8.11%)', data:apcTarget, borderColor:'rgba(16,185,129,.4)', borderWidth:1,
+       borderDash:[3,3], pointRadius:0, fill:false},
+    ]
+  },
+  options:{responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+    plugins:{legend:{labels:{boxWidth:12,padding:16}}},
+    scales:{
+      x:{ticks:{maxTicksLimit:12, maxRotation:45}},
+      y:{min:7.6, max:9.1, ticks:{callback:v=>v.toFixed(2)+'%'}}
+    }
+  }
+});
+
+// EQUIP DONUT
+new Chart(document.getElementById('equipDonut'), {
+  type:'doughnut',
+  data:{
+    labels: equipData.map(e=>e.name),
+    datasets:[{
+      data: equipData.map(e=>e.pct),
+      backgroundColor: equipData.map(e=>e.color+'cc'),
+      borderColor: equipData.map(e=>e.color),
+      borderWidth:2, hoverOffset:8
+    }]
+  },
+  options:{responsive:true, maintainAspectRatio:false, cutout:'65%',
+    plugins:{legend:{position:'right', labels:{boxWidth:12, padding:10, font:{size:10}}}}
+  }
+});
+
+// EQUIP TREND
+const months2025 = MONTHS.slice(0,8);
+new Chart(document.getElementById('equipTrendChart'), {
+  type:'line',
+  data:{
+    labels: months2025,
+    datasets:[
+      {label:'BFP', data:[1.78,1.81,1.80,1.84,1.86,1.88,1.91,1.93], borderColor:'#ef4444', borderWidth:2, tension:.3, pointRadius:3},
+      {label:'CW Pump', data:[1.12,1.14,1.10,1.16,1.13,1.15,1.17,1.19], borderColor:'#f59e0b', borderWidth:2, tension:.3, pointRadius:3},
+      {label:'ID Fan', data:[0.98,0.96,0.95,0.94,0.93,0.94,0.95,0.94], borderColor:'#10b981', borderWidth:2, tension:.3, pointRadius:3},
+    ]
+  },
+  options:{responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{labels:{boxWidth:10, padding:12}}},
+    scales:{y:{title:{display:true, text:'MU/Month'}}}
+  }
+});
+
+// UNIT BAR
+new Chart(document.getElementById('unitBarChart'), {
+  type:'bar',
+  data:{
+    labels: unitData.map(u=>u.u),
+    datasets:[{
+      label:'APC%', data: unitData.map(u=>u.apc),
+      backgroundColor: unitData.map(u=>u.status==='red'?'rgba(239,68,68,.7)':u.status==='amber'?'rgba(245,158,11,.7)':'rgba(6,182,212,.7)'),
+      borderColor: unitData.map(u=>u.status==='red'?'#ef4444':u.status==='amber'?'#f59e0b':'#06b6d4'),
+      borderWidth:1, borderRadius:4,
+    },{
+      label:'Target (8.11%)', data:Array(10).fill(8.11), type:'line',
+      borderColor:'rgba(16,185,129,.6)', borderDash:[4,3], borderWidth:1.5, pointRadius:0
+    }]
+  },
+  options:{responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{labels:{boxWidth:12}}},
+    scales:{y:{min:7.5, max:9.0, ticks:{callback:v=>v.toFixed(2)+'%'}}}
+  }
+});
+
+// MODEL COMPARISON
+new Chart(document.getElementById('modelCompChart'), {
+  type:'bar',
+  data:{
+    labels:['ARIMA','XGBoost','LSTM','GRU','Hybrid LSTM+XGB'],
+    datasets:[
+      {label:'R²', data:[0.761,0.871,0.924,0.911,0.941],
+       backgroundColor:['rgba(100,116,139,.6)','rgba(139,92,246,.7)','rgba(6,182,212,.7)','rgba(16,185,129,.7)','rgba(245,158,11,.85)'],
+       borderWidth:1, borderRadius:6}
+    ]
+  },
+  options:{responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{y:{min:0.7, max:1.0, ticks:{callback:v=>v.toFixed(3)}}}
+  }
+});
+
+// FEATURE IMPORTANCE
+new Chart(document.getElementById('featureImportChart'), {
+  type:'bar',
+  data:{
+    labels:['BFP Consumption','Coal Moisture','APC Lag-1','GCV','CW Pump','ID Fan','PLF'],
+    datasets:[{
+      label:'Importance', data:[0.214,0.187,0.162,0.143,0.118,0.089,0.052],
+      backgroundColor:'rgba(6,182,212,.7)', borderColor:'#06b6d4', borderWidth:1, borderRadius:4
+    }]
+  },
+  options:{responsive:true, maintainAspectRatio:false, indexAxis:'y',
+    plugins:{legend:{display:false}},
+    scales:{x:{max:0.25}}
+  }
+});
+
+// ACTUAL vs PREDICTED
+const testMonths = ['Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const testActual  = [8.49,8.30,8.20,8.08,8.26,8.48,8.72,null,null,null,null];
+const testPred    = [8.42,8.35,8.23,8.14,8.31,8.44,8.65,8.55,8.44,8.61,8.52];
+new Chart(document.getElementById('actualVsPredChart'), {
+  type:'line',
+  data:{
+    labels: testMonths,
+    datasets:[
+      {label:'Actual APC%', data:testActual, borderColor:'#f59e0b', borderWidth:2, pointRadius:5, tension:.2, spanGaps:false},
+      {label:'Predicted (Hybrid)', data:testPred, borderColor:'#06b6d4', borderDash:[5,3], borderWidth:2, pointRadius:4, tension:.2},
+    ]
+  },
+  options:{responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+    plugins:{legend:{labels:{boxWidth:12}}},
+    scales:{y:{min:7.9, max:8.9, ticks:{callback:v=>v.toFixed(2)+'%'}}}
+  }
+});
+
+// WATERFALL
+const wfLabels = ['Baseline','Coal Blending','BFP Sched.','CW Pump','ID Fan','Unit Balance','Interactions','Final APC'];
+const wfData = [8.11, -0.28, -0.16, -0.13, -0.09, -0.21, -0.32, 6.92];
+const wfColors = wfLabels.map((l,i) => i===0||i===wfLabels.length-1 ? 'rgba(6,182,212,.8)' : 'rgba(16,185,129,.7)');
+new Chart(document.getElementById('waterfallChart'), {
+  type:'bar',
+  data:{
+    labels: wfLabels,
+    datasets:[{
+      label:'APC%', data: wfData,
+      backgroundColor: wfColors, borderColor: wfLabels.map((_,i)=>i===0||i===wfLabels.length-1?'#06b6d4':'#10b981'),
+      borderWidth:1, borderRadius:4
+    }]
+  },
+  options:{responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>{
+        const v = ctx.raw;
+        return v < 0 ? `Reduction: ${v}%` : `APC: ${v}%`;
+      }}}
+    },
+    scales:{y:{min:6.5, max:8.3, ticks:{callback:v=>v.toFixed(2)+'%'}}}
+  }
+});
+</script>
+</body>
+</html>
