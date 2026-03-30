@@ -142,7 +142,7 @@ APC-Dashboard/
 ---
 
 ## ⚙️ Usage
-git clone [https://github.com/your-username/APC-Dashboard.git](https://mohitsaxena1210.github.io/APC-Optimization/)
+git clone (https://mohitsaxena1210.github.io/APC-Optimization/)
 
 Open: index.html
 
